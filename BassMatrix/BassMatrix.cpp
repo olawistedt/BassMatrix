@@ -7,8 +7,11 @@
 #include "IControls.h"
 #endif
 
-BassMatrix::BassMatrix(const InstanceInfo& info)
-  : Plugin(info, MakeConfig(kNumParams, kNumPresets)), mLastSamplePos(0), mStartSyncWithHost(false), mCurrentPattern(0)
+BassMatrix::BassMatrix(const InstanceInfo &info) :
+  Plugin(info, MakeConfig(kNumParams, kNumPresets)),
+  mLastSamplePos(0),
+  mStartSyncWithHost(false),
+  mCurrentPattern(0)
 {
   // Setup the open303 sequencer.
   //srand(static_cast<unsigned int>(time(0)));
@@ -53,22 +56,22 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
   //  GetParam(i)->InitBool(("Sequencer button " + std::to_string(i -  kBtnSeq0)).c_str(), (i - kBtnSeq0) / 16 == 5 || (i - kBtnSeq0) / 16 == 16);
   //}
 
-//  for (int pattern = 1; pattern < kNumberOfPatterns + 1; ++pattern)
-//  {
-//    for (int i = kBtnSeq0; i < kBtnSeq0 + pattern * kNumberOfSeqButtons; ++i)
-//    {
-//      GetParam(i)->InitBool(("Sequencer button " + std::to_string(pattern * (i - kBtnSeq0))).c_str(), false);
-//    }
-//  }
+  //  for (int pattern = 1; pattern < kNumberOfPatterns + 1; ++pattern)
+  //  {
+  //    for (int i = kBtnSeq0; i < kBtnSeq0 + pattern * kNumberOfSeqButtons; ++i)
+  //    {
+  //      GetParam(i)->InitBool(("Sequencer button " + std::to_string(pattern * (i - kBtnSeq0))).c_str(), false);
+  //    }
+  //  }
 
   //for (int i = kBtnPtnC; i < kBtnPtnC + 12; ++i)
   //{
   //  GetParam(i)->InitBool(("Pattern button" + std::to_string(i - kBtnPtnC)).c_str(), i == kBtnPtnC);
   //}
 
-  GetParam(kBtnPtnOct2)->InitBool("Octav 2", false); // It's bad to set something to true here!!
-  GetParam(kBtnPtnOct3)->InitBool("Octav 3", false); // It's bad to set something to true here!!
-  GetParam(kBtnPtnC)->InitBool("Pattern C", false);  // It's bad to set something to true here!!
+  GetParam(kBtnPtnOct2)->InitBool("Octav 2", false);  // It's bad to set something to true here!!
+  GetParam(kBtnPtnOct3)->InitBool("Octav 3", false);  // It's bad to set something to true here!!
+  GetParam(kBtnPtnC)->InitBool("Pattern C", false);   // It's bad to set something to true here!!
 
   GetParam(kKnobLoopSize)->InitInt("Loop size", 1, 1, 24);
 
@@ -76,12 +79,11 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
   GetParam(kParamClear)->InitBool("Pattern clear", false);
   GetParam(kParamRandomize)->InitBool("Pattern randomize", false);
 
-#if IPLUG_EDITOR // http://bit.ly/2S64BDd
-  mMakeGraphicsFunc = [&]() {
-    return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS);
-  };
+#if IPLUG_EDITOR  // http://bit.ly/2S64BDd
+  mMakeGraphicsFunc = [&]() { return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS); };
 
-  mLayoutFunc = [&](IGraphics* pGraphics) {
+  mLayoutFunc = [&](IGraphics *pGraphics)
+  {
     const IRECT bounds = pGraphics->GetBounds();
     const IRECT innerBounds = bounds.GetPadded(-10.f);
     const IRECT sliderBounds = innerBounds.GetFromLeft(150).GetMidVPadded(100);
@@ -91,9 +93,9 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
     pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
 
-    // Background
-    pGraphics->LoadBitmap(BACKGROUND_FN, 1, true);
-    pGraphics->AttachBackground(BACKGROUND_FN);
+    //// Background
+    //pGraphics->LoadBitmap(BACKGROUND_FN, 1, true);
+    //pGraphics->AttachBackground(BACKGROUND_FN);
 
     // Knobs
     const IBitmap knobRotateBitmap = pGraphics->LoadBitmap(PNG6062_FN, 127);
@@ -101,7 +103,8 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
     const IBitmap knobBigBitmap = pGraphics->LoadBitmap(PNGFX1BIG_FN, 61);
     //    pGraphics->AttachControl(new IBKnobControl(210, 30, knobLittleBitmap, kParamWaveForm));
     const IBitmap btnWaveFormBitmap = pGraphics->LoadBitmap(PNGWAVEFORM_FN, 2, true);
-    pGraphics->AttachControl(new IBSwitchControl(200, 50, btnWaveFormBitmap, kParamWaveForm), kCtrlWaveForm);
+    pGraphics->AttachControl(new IBSwitchControl(200, 50, btnWaveFormBitmap, kParamWaveForm),
+                             kCtrlWaveForm);
     pGraphics->AttachControl(new IBKnobControl(310, 30, knobLittleBitmap, kParamTuning));
     pGraphics->AttachControl(new IBKnobControl(410, 30, knobLittleBitmap, kParamCutOff));
     pGraphics->AttachControl(new IBKnobControl(510, 30, knobLittleBitmap, kParamResonance));
@@ -115,9 +118,21 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
 
     // Pattern buttons
     const IBitmap btnPatternOctav2Bitmap = pGraphics->LoadBitmap(PNGBTNPATOCTAV2_FN, 2, true);
-    pGraphics->AttachControl(new PatternBtnControl(485, 138, btnPatternOctav2Bitmap, kBtnPtnOct2, kCtrlTagBtnPtnOct2, open303Core), kCtrlTagBtnPtnOct2);
+    pGraphics->AttachControl(new PatternBtnControl(485,
+                                                   138,
+                                                   btnPatternOctav2Bitmap,
+                                                   kBtnPtnOct2,
+                                                   kCtrlTagBtnPtnOct2,
+                                                   open303Core),
+                             kCtrlTagBtnPtnOct2);
     const IBitmap btnPatternOctav3Bitmap = pGraphics->LoadBitmap(PNGBTNPATOCTAV3_FN, 2, true);
-    pGraphics->AttachControl(new PatternBtnControl(485.f + btnPatternOctav2Bitmap.FW() - 3, 138, btnPatternOctav3Bitmap, kBtnPtnOct3, kCtrlTagBtnPtnOct3, open303Core), kCtrlTagBtnPtnOct3);
+    pGraphics->AttachControl(new PatternBtnControl(485.f + btnPatternOctav2Bitmap.FW() - 3,
+                                                   138,
+                                                   btnPatternOctav3Bitmap,
+                                                   kBtnPtnOct3,
+                                                   kCtrlTagBtnPtnOct3,
+                                                   open303Core),
+                             kCtrlTagBtnPtnOct3);
     IBitmap btnPatternBitmap[12];
     btnPatternBitmap[0] = pGraphics->LoadBitmap(PNGBTNPATC_FN, 2, true);
     btnPatternBitmap[1] = pGraphics->LoadBitmap(PNGBTNPATCc_FN, 2, true);
@@ -133,9 +148,14 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
     btnPatternBitmap[11] = pGraphics->LoadBitmap(PNGBTNPATB_FN, 2, true);
     for (int i = 0; i < 12; ++i)
     {
-      pGraphics->AttachControl(new PatternBtnControl(481.f + (i % 4) * (btnPatternBitmap[0].W() / 2),
-        178.f + (i / 4) * (btnPatternBitmap[0].H()),
-        btnPatternBitmap[i], kBtnPtnC + i, kCtrlTagBtnPtnC + i, open303Core), kCtrlTagBtnPtnC + i);
+      pGraphics->AttachControl(new PatternBtnControl(481.f +
+                                                         (i % 4) * (btnPatternBitmap[0].W() / 2),
+                                                     178.f + (i / 4) * (btnPatternBitmap[0].H()),
+                                                     btnPatternBitmap[i],
+                                                     kBtnPtnC + i,
+                                                     kCtrlTagBtnPtnC + i,
+                                                     open303Core),
+                               kCtrlTagBtnPtnC + i);
     }
 
     // Pattern control buttons
@@ -147,16 +167,24 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
     //    pGraphics->AttachControl(new PtnModBtnControl(369, 258, btnCopyBitmap, kParamCopy));
 
     // Loop size knob
-    const IBitmap btnPatternLoopSizeBitmap = pGraphics->LoadBitmap(PNGKNOBPATLOOPSIZE_FN, 24, false);
-    pGraphics->AttachControl(new IBKnobControl(666.f, 195.f, btnPatternLoopSizeBitmap, kKnobLoopSize));
+    const IBitmap btnPatternLoopSizeBitmap =
+        pGraphics->LoadBitmap(PNGKNOBPATLOOPSIZE_FN, 24, false);
+    pGraphics->AttachControl(
+        new IBKnobControl(666.f, 195.f, btnPatternLoopSizeBitmap, kKnobLoopSize));
 
     // Led buttons
     const IBitmap ledBtnBitmap = pGraphics->LoadBitmap(PNGBTNLED_FN, 2, true);
     for (int i = 0; i < 16; i++)
     {
-      pGraphics->AttachControl(new SeqLedBtnControl(124.f + i * (ledBtnBitmap.W() / 2 + 3) + ((i > 3) ? 12 : 0) + ((i > 7) ? 12 : 0) + ((i > 11) ? 12 : 0),
-        294.f,
-        ledBtnBitmap, kLedBtn0 + i, open303Core), kCtrlTagLedSeq0 + i, "Sequencer");
+      pGraphics->AttachControl(new SeqLedBtnControl(124.f + i * (ledBtnBitmap.W() / 2 + 3) +
+                                                        ((i > 3) ? 12 : 0) + ((i > 7) ? 12 : 0) +
+                                                        ((i > 11) ? 12 : 0),
+                                                    294.f,
+                                                    ledBtnBitmap,
+                                                    kLedBtn0 + i,
+                                                    open303Core),
+                               kCtrlTagLedSeq0 + i,
+                               "Sequencer");
     }
 
     // Properties buttons
@@ -165,10 +193,14 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
     {
       for (int j = 0; j < 5; j++)
       {
-        pGraphics->AttachControl(new SeqNoteBtnControl(134.f + i * (btnPropBitmap.W() / 2 + 21) + ((i > 3) ? 12 : 0) + ((i > 7) ? 12 : 0) + ((i > 11) ? 12 : 0),
-          665.f + j * (btnPropBitmap.H() + 1),
-          btnPropBitmap, kBtnProp0 + 16 * j + i),
-          kCtrlTagBtnProp0 + 16 * j + i, "Sequencer");
+        pGraphics->AttachControl(new SeqNoteBtnControl(134.f + i * (btnPropBitmap.W() / 2 + 21) +
+                                                           ((i > 3) ? 12 : 0) + ((i > 7) ? 12 : 0) +
+                                                           ((i > 11) ? 12 : 0),
+                                                       665.f + j * (btnPropBitmap.H() + 1),
+                                                       btnPropBitmap,
+                                                       kBtnProp0 + 16 * j + i),
+                                 kCtrlTagBtnProp0 + 16 * j + i,
+                                 "Sequencer");
       }
     }
 
@@ -179,25 +211,54 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
       for (int j = 0; j < kNumberOfNoteBtns; j++)
       {
         int heigth = btnSeqBitmap.H();
-        pGraphics->AttachControl(new SeqNoteBtnControl(134.f + i * (btnSeqBitmap.W() / 2 + 21) + ((i > 3) ? 12 : 0) + ((i > 7) ? 12 : 0) + ((i > 11) ? 12 : 0),
-          361.f + j * (heigth + 1),
-          btnSeqBitmap, kBtnSeq0 + 16 * j + i),
-          kCtrlTagBtnSeq0 + 16 * j + i, "Sequencer");
+        pGraphics->AttachControl(new SeqNoteBtnControl(134.f + i * (btnSeqBitmap.W() / 2 + 21) +
+                                                           ((i > 3) ? 12 : 0) + ((i > 7) ? 12 : 0) +
+                                                           ((i > 11) ? 12 : 0),
+                                                       361.f + j * (heigth + 1),
+                                                       btnSeqBitmap,
+                                                       kBtnSeq0 + 16 * j + i),
+                                 kCtrlTagBtnSeq0 + 16 * j + i,
+                                 "Sequencer");
       }
     }
 
     const int yVal = 790;
     const int xBase = 310;
     const IBitmap btnStopBitmap = pGraphics->LoadBitmap(PNGSTOP_FN, 2, true);
-    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 0, yVal, btnStopBitmap, kParamStop, kCtrlTagStop), kCtrlTagStop);
+    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 0,
+                                                yVal,
+                                                btnStopBitmap,
+                                                kParamStop,
+                                                kCtrlTagStop),
+                             kCtrlTagStop);
     const IBitmap btnHostSyncBitmap = pGraphics->LoadBitmap(PNGHOSTSYNC_FN, 2, true);
-    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 1, yVal, btnHostSyncBitmap, kParamHostSync, kCtrlTagHostSync), kCtrlTagHostSync);
+    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 1,
+                                                yVal,
+                                                btnHostSyncBitmap,
+                                                kParamHostSync,
+                                                kCtrlTagHostSync),
+                             kCtrlTagHostSync);
     const IBitmap btnKeySyncBitmap = pGraphics->LoadBitmap(PNGKEYSYNC_FN, 2, true);
-    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 2, yVal, btnKeySyncBitmap, kParamKeySync, kCtrlTagKeySync), kCtrlTagKeySync);
+    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 2,
+                                                yVal,
+                                                btnKeySyncBitmap,
+                                                kParamKeySync,
+                                                kCtrlTagKeySync),
+                             kCtrlTagKeySync);
     const IBitmap btnInternalSyncBitmap = pGraphics->LoadBitmap(PNGINTERNALSYNC_FN, 2, true);
-    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 3, yVal, btnInternalSyncBitmap, kParamInternalSync, kCtrlTagInternalSync), kCtrlTagInternalSync);
+    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 3,
+                                                yVal,
+                                                btnInternalSyncBitmap,
+                                                kParamInternalSync,
+                                                kCtrlTagInternalSync),
+                             kCtrlTagInternalSync);
     const IBitmap btnMidiPlayBitmap = pGraphics->LoadBitmap(PNGMIDIPLAY_FN, 2, true);
-    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 4, yVal, btnMidiPlayBitmap, kParamMidiPlay, kCtrlTagMidiPlay), kCtrlTagMidiPlay);
+    pGraphics->AttachControl(new SyncBtnControl(xBase + btnStopBitmap.W() / 2 * 4,
+                                                yVal,
+                                                btnMidiPlayBitmap,
+                                                kParamMidiPlay,
+                                                kCtrlTagMidiPlay),
+                             kCtrlTagMidiPlay);
   };
 #endif
 }
@@ -215,7 +276,8 @@ BassMatrix::BassMatrix(const InstanceInfo& info)
 // Save plugin settings to hard drive. First save is junk.
 //
 #if IPLUG_EDITOR
-bool BassMatrix::SerializeState(IByteChunk& chunk) const
+bool
+BassMatrix::SerializeState(IByteChunk &chunk) const
 {
 #ifdef _DEBUG
   OutputDebugString("SerializeState() called\n");
@@ -223,7 +285,7 @@ bool BassMatrix::SerializeState(IByteChunk& chunk) const
 
   TRACE
 
-    bool savedOK = true;
+  bool savedOK = true;
 
   // Set version of the preset format.
   double version = 1.1;
@@ -233,7 +295,7 @@ bool BassMatrix::SerializeState(IByteChunk& chunk) const
   int n = NParams();
   for (int i = kParamCutOff; i < n && savedOK; ++i)
   {
-    const IParam* pParam = GetParam(i);
+    const IParam *pParam = GetParam(i);
     Trace(TRACELOC, " %s %d %f", pParam->GetName(), i, pParam->Value());
     double v = pParam->Value();
     savedOK &= (chunk.Put(&v) > 0);
@@ -243,23 +305,24 @@ bool BassMatrix::SerializeState(IByteChunk& chunk) const
   for (int patternNr = 0; patternNr < kNumberOfPatterns && savedOK; ++patternNr)
   {
     Trace(TRACELOC, " %s %d ", "Pattern nr", patternNr);
-    std::array<bool, kNumberOfSeqButtons> a = CollectSequenceButtons((rosic::Open303&)open303Core, patternNr);
+    std::array<bool, kNumberOfSeqButtons> a =
+        CollectSequenceButtons((rosic::Open303 &)open303Core, patternNr);
     for (auto elem : a)
     {
       //      Trace(TRACELOC, " %s %d %f", "Sequencer button nr", patternNr, elem ? 1.0 : 0.0);
       double v = elem ? 1.0 : 0.0;
 #ifdef _DEBUG
       OutputDebugString(v == 1.0 ? "*" : "-");
-#endif // _DEBUG
+#endif  // _DEBUG
       savedOK &= (chunk.Put(&v) > 0);
     }
 #ifdef _DEBUG
     OutputDebugString("\n");
-#endif // _DEBUG
+#endif  // _DEBUG
   }
 
   // Save current octav and current pattern.
-//  double oct2 = GetParam(kBtnPtnOct2)->Value();
+  //  double oct2 = GetParam(kBtnPtnOct2)->Value();
   double oct3 = GetParam(kBtnPtnOct3)->Value();
   double ptn;
   for (int i = kBtnPtnC; i < kBtnPtnC + 12; ++i)
@@ -283,7 +346,8 @@ bool BassMatrix::SerializeState(IByteChunk& chunk) const
 //
 // From hard disk to BassMatrix.
 //
-int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
+int
+BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
 {
 #ifdef _DEBUG
   OutputDebugString("UnserializeState() called\n");
@@ -291,9 +355,9 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
 
   TRACE
 
-    ENTER_PARAMS_MUTEX
+  ENTER_PARAMS_MUTEX
 
-    int n = NParams(), pos = startPos;
+  int n = NParams(), pos = startPos;
 
   // Check version for the preset format
   double version;
@@ -302,7 +366,7 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
 
   for (int i = kParamCutOff; i < n && pos >= 0; ++i)
   {
-    IParam* pParam = GetParam(i);
+    IParam *pParam = GetParam(i);
     double v = 0.0;
     pos = chunk.Get(&v, pos);
     pParam->Set(v);
@@ -314,7 +378,7 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
   {
     Trace(TRACELOC, " %s %d ", "Pattern nr", patternNr);
 
-    rosic::AcidPattern* pattern = open303Core.sequencer.getPattern(patternNr);
+    rosic::AcidPattern *pattern = open303Core.sequencer.getPattern(patternNr);
 
     for (int i = 0; i < kNumberOfSeqButtons - kNumberOfTotalPropButtons; ++i)
     {
@@ -324,7 +388,7 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
 
 #ifdef _DEBUG
       OutputDebugString(v == 1.0 ? "*" : "-");
-#endif // _DEBUG
+#endif  // _DEBUG
 
       if (v == 1.0)
       {
@@ -332,7 +396,7 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
       }
     }
 
-    for (int i = 0; i < kNumberOfTotalPropButtons; ++i) // The note properties
+    for (int i = 0; i < kNumberOfTotalPropButtons; ++i)  // The note properties
     {
       double v = 0.0;
       pos = chunk.Get(&v, pos);
@@ -340,7 +404,7 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
 
 #ifdef _DEBUG
       OutputDebugString(v == 1.0 ? "*" : "-");
-#endif // _DEBUG
+#endif  // _DEBUG
 
       if (i < 16)
       {
@@ -368,13 +432,13 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
     }
 #ifdef _DEBUG
     OutputDebugString("\n");
-#endif // _DEBUG
+#endif  // _DEBUG
   }
 
   // Restore octav and pattern buttons.
   double ptn;
-  pos = chunk.Get(&ptn, pos); // ptn is between 0.0 and 23.0
-//  open303Core.sequencer.setPattern(static_cast<int>(ptn));
+  pos = chunk.Get(&ptn, pos);  // ptn is between 0.0 and 23.0
+                               //  open303Core.sequencer.setPattern(static_cast<int>(ptn));
   if (ptn < 12.0)
   {
     GetParam(kBtnPtnOct2)->Set(1.0);
@@ -402,33 +466,37 @@ int BassMatrix::UnserializeState(const IByteChunk& chunk, int startPos)
 
   LEAVE_PARAMS_MUTEX
 
-    return pos;
+  return pos;
 }
-#endif // IPLUG_EDITOR
+#endif  // IPLUG_EDITOR
 
 
-std::array<bool, kNumberOfSeqButtons> BassMatrix::CollectSequenceButtons(rosic::Open303& open303Core, int patternNr)
+std::array<bool, kNumberOfSeqButtons>
+BassMatrix::CollectSequenceButtons(rosic::Open303 &open303Core, int patternNr)
 {
   std::array<bool, kNumberOfSeqButtons> seq;
 
-  if (patternNr == -1) { patternNr = open303Core.sequencer.getActivePattern(); }
+  if (patternNr == -1)
+  {
+    patternNr = open303Core.sequencer.getActivePattern();
+  }
 
 #ifdef _DEBUG
   OutputDebugString("CollectSequenceButtons()");
   OutputDebugString(std::string("Pattern: " + std::to_string(patternNr) + "\n").c_str());
-#endif // _DEBUG
+#endif  // _DEBUG
 
-  rosic::AcidPattern* pattern = open303Core.sequencer.getPattern(patternNr);
+  rosic::AcidPattern *pattern = open303Core.sequencer.getPattern(patternNr);
 
   for (int i = 0; i < kNumberOfSeqButtons - kNumberOfTotalPropButtons; ++i)
   {
     seq[i] = pattern->getNote(i % 16)->key == kNumberOfNoteBtns - i / 16 - 1;
 #ifdef _DEBUG
     OutputDebugString(seq[i] ? "*" : "-");
-#endif // _DEBUG
+#endif  // _DEBUG
   }
 
-  for (int i = 0; i < kNumberOfTotalPropButtons; ++i) // The note properties
+  for (int i = 0; i < kNumberOfTotalPropButtons; ++i)  // The note properties
   {
     int j = i + kNumberOfSeqButtons - kNumberOfTotalPropButtons;
     if (i < 16)
@@ -453,25 +521,27 @@ std::array<bool, kNumberOfSeqButtons> BassMatrix::CollectSequenceButtons(rosic::
     }
 #ifdef _DEBUG
     OutputDebugString(seq[j] ? "*" : "-");
-#endif // _DEBUG
+#endif  // _DEBUG
   }
 #ifdef _DEBUG
   OutputDebugString("\n");
-#endif // _DEBUG
+#endif  // _DEBUG
 
   return seq;
 }
 
 #if IPLUG_DSP
 
-void BassMatrix::ProcessBlock(PLUG_SAMPLE_DST** inputs, PLUG_SAMPLE_DST** outputs, int nFrames)
+void
+BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, int nFrames)
 {
 #if 1
   // Channel declaration.
-  PLUG_SAMPLE_DST* out01 = outputs[0];  PLUG_SAMPLE_DST* out02 = outputs[1];
+  PLUG_SAMPLE_DST *out01 = outputs[0];
+  PLUG_SAMPLE_DST *out02 = outputs[1];
 
   // No sample accurate leds, because they will not be accurate anyway.
-  mLedSeqSender.PushData({ kCtrlTagLedSeq0, {open303Core.sequencer.getStep()} });
+  mLedSeqSender.PushData({ kCtrlTagLedSeq0, { open303Core.sequencer.getStep() } });
 
   if (open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::HOST_SYNC)
   {
@@ -479,10 +549,10 @@ void BassMatrix::ProcessBlock(PLUG_SAMPLE_DST** inputs, PLUG_SAMPLE_DST** output
   }
 
   if ((open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::RUN ||
-    open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::HOST_SYNC) &&
-    !open303Core.sequencer.isRunning())
+       open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::HOST_SYNC) &&
+      !open303Core.sequencer.isRunning())
   {
-    open303Core.noteOn(36, 64, 0.0); // 36 seems to make C on sequencer be a C.
+    open303Core.noteOn(36, 64, 0.0);  // 36 seems to make C on sequencer be a C.
   }
 
   if (open303Core.sequencer.getSequencerMode() != rosic::AcidSequencer::OFF)
@@ -491,12 +561,12 @@ void BassMatrix::ProcessBlock(PLUG_SAMPLE_DST** inputs, PLUG_SAMPLE_DST** output
     {
       open303Core.sequencer.setUpdateSequenserGUI(false);
 
-      mSequencerSender.PushData({ kCtrlTagBtnSeq0, {CollectSequenceButtons(open303Core)} });
+      mSequencerSender.PushData({ kCtrlTagBtnSeq0, { CollectSequenceButtons(open303Core) } });
 
       // Push pattern buttons
       int pat;
       pat = open303Core.sequencer.getActivePattern();
-      mPatternSender.PushData({ kCtrlTagBtnPtnC, {pat} });
+      mPatternSender.PushData({ kCtrlTagBtnPtnC, { pat } });
     }
   }
 
@@ -504,22 +574,28 @@ void BassMatrix::ProcessBlock(PLUG_SAMPLE_DST** inputs, PLUG_SAMPLE_DST** output
   {
     if (open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::HOST_SYNC)
     {
-      if (GetSamplePos() < 0.0 /* At least Cubase can give a negative sample pos in the beginning. */ || !GetTransportIsRunning())
+      if (GetSamplePos() <
+              0.0 /* At least Cubase can give a negative sample pos in the beginning. */
+          || !GetTransportIsRunning())
       {
-        *out01++ = *out02++ = 0.0; // Silence
-        continue; // Next frame
+        *out01++ = *out02++ = 0.0;  // Silence
+        continue;                   // Next frame
       }
 
-      else if (GetTransportIsRunning() && (mStartSyncWithHost || mLastSamplePos != 0 && (mLastSamplePos + offset != GetSamplePos() + offset)))
-      { // Transport has changed
+      else if (GetTransportIsRunning() &&
+               (mStartSyncWithHost ||
+                mLastSamplePos != 0 && (mLastSamplePos + offset != GetSamplePos() + offset)))
+      {  // Transport has changed
         mStartSyncWithHost = false;
         double maxSamplePos = GetSamplesPerBeat() * 4.0;
-        int currentSampleInSequence = static_cast<int>(GetSamplePos()) % static_cast<int>(maxSamplePos);
+        int currentSampleInSequence =
+            static_cast<int>(GetSamplePos()) % static_cast<int>(maxSamplePos);
         // int sampleLeftToNextStep = static_cast<int>(GetSamplePos()) / static_cast<int>(maxSamplePos);
         double samplesPerStep = maxSamplePos / 16.0;
         int currentStepInSequence = (int)((double)currentSampleInSequence / samplesPerStep);
-        open303Core.sequencer.setStep(currentStepInSequence, 0); // We hope that the bar is set on an even 16't.
-        mLastSamplePos = 0; // We hope that a change doesn't occurs twice in a ProcessBlock() call.
+        open303Core.sequencer.setStep(currentStepInSequence,
+                                      0);  // We hope that the bar is set on an even 16't.
+        mLastSamplePos = 0;  // We hope that a change doesn't occurs twice in a ProcessBlock() call.
       }
     }
 
@@ -544,10 +620,11 @@ void BassMatrix::ProcessBlock(PLUG_SAMPLE_DST** inputs, PLUG_SAMPLE_DST** output
     while (!mMidiQueue.Empty())
     {
       IMidiMsg msg = mMidiQueue.Peek();
-      if (msg.mOffset > offset) break;
+      if (msg.mOffset > offset)
+        break;
 
       if (open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::KEY_SYNC ||
-        open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::MIDI_PLAY)
+          open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::MIDI_PLAY)
       {
         if (msg.StatusMsg() == IMidiMsg::kNoteOn)
         {
@@ -559,7 +636,7 @@ void BassMatrix::ProcessBlock(PLUG_SAMPLE_DST** inputs, PLUG_SAMPLE_DST** output
         }
       }
       else if (open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::HOST_SYNC ||
-        open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::RUN)
+               open303Core.sequencer.getSequencerMode() == rosic::AcidSequencer::RUN)
       {
         if (msg.StatusMsg() == IMidiMsg::kNoteOn)
         {
@@ -583,7 +660,8 @@ void BassMatrix::ProcessBlock(PLUG_SAMPLE_DST** inputs, PLUG_SAMPLE_DST** output
 }
 
 #if IPLUG_DSP
-void BassMatrix::OnIdle()
+void
+BassMatrix::OnIdle()
 {
   mLedSeqSender.TransmitData(*this);
   mSequencerSender.TransmitData(*this);
@@ -591,7 +669,8 @@ void BassMatrix::OnIdle()
 }
 #endif
 
-void BassMatrix::OnReset()
+void
+BassMatrix::OnReset()
 {
   // NOTE: OnReset() is called after a preset have been
   // loaded, so be sure you really want to reset the parameter.
@@ -600,7 +679,7 @@ void BassMatrix::OnReset()
 
   // Some internal stuff. Maybe we need to change this to sound more as a real TB-303?
   // Don't move this code, because Square wave stops to work then.
-  open303Core.filter.setMode(rosic::TeeBeeFilter::TB_303); // Should be LP_12
+  open303Core.filter.setMode(rosic::TeeBeeFilter::TB_303);  // Should be LP_12
   open303Core.setAmpSustain(-60.0);
   open303Core.setTanhShaperDrive(36.9);
   open303Core.setTanhShaperOffset(4.37);
@@ -610,14 +689,16 @@ void BassMatrix::OnReset()
   open303Core.setSquarePhaseShift(189.0);
 }
 
-void BassMatrix::ProcessMidiMsg(const IMidiMsg& msg)
+void
+BassMatrix::ProcessMidiMsg(const IMidiMsg &msg)
 {
   TRACE;
-  mMidiQueue.Add(msg); // Take care of MIDI events in ProcessBlock()
+  mMidiQueue.Add(msg);  // Take care of MIDI events in ProcessBlock()
 }
 
 #if IPLUG_DSP
-void BassMatrix::OnParamChangeUI(int paramIdx, EParamSource source)
+void
+BassMatrix::OnParamChangeUI(int paramIdx, EParamSource source)
 {
   if (source != kUI && source != kReset && source != kPresetRecall)
   {
@@ -629,19 +710,28 @@ void BassMatrix::OnParamChangeUI(int paramIdx, EParamSource source)
   // Note buttons
   if (paramIdx >= kBtnSeq0 && paramIdx < kBtnSeq0 + kNumberOfSeqButtons - kNumberOfTotalPropButtons)
   {
-    if (source == kPresetRecall) { return; }
-    if (source == kReset) { return; }
+    if (source == kPresetRecall)
+    {
+      return;
+    }
+    if (source == kReset)
+    {
+      return;
+    }
 
     int seqNr = (paramIdx - kBtnSeq0) % 16;
-    int noteNr = kNumberOfNoteBtns - (paramIdx - kBtnSeq0) / 16 - 1; // noteNr between 0 and 12
-    rosic::AcidPattern* pattern = open303Core.sequencer.getPattern(open303Core.sequencer.getActivePattern());
+    int noteNr = kNumberOfNoteBtns - (paramIdx - kBtnSeq0) / 16 - 1;  // noteNr between 0 and 12
+    rosic::AcidPattern *pattern =
+        open303Core.sequencer.getPattern(open303Core.sequencer.getActivePattern());
 
     if (value == 1.0)
     {
 #ifdef _DEBUG
-      OutputDebugString(std::string("Setting step " + to_string(seqNr) + " Note nr " + to_string(noteNr) + "\n").c_str());
-#endif // _DEBUG
-      pattern->setKey(seqNr, noteNr); // Take care of the key notes
+      OutputDebugString(
+          std::string("Setting step " + to_string(seqNr) + " Note nr " + to_string(noteNr) + "\n")
+              .c_str());
+#endif                                 // _DEBUG
+      pattern->setKey(seqNr, noteNr);  // Take care of the key notes
     }
     else
     {
@@ -653,12 +743,19 @@ void BassMatrix::OnParamChangeUI(int paramIdx, EParamSource source)
   // Note properties buttons
   if (paramIdx >= kBtnProp0 && paramIdx < kBtnProp0 + kNumberOfTotalPropButtons)
   {
-    if (source == kPresetRecall) { return; }
-    if (source == kReset) { return; }
+    if (source == kPresetRecall)
+    {
+      return;
+    }
+    if (source == kReset)
+    {
+      return;
+    }
 
     int seqNr = (paramIdx - kBtnProp0) % 16;
     int rowNr = (paramIdx - kBtnProp0) / 16;
-    rosic::AcidPattern* pattern = open303Core.sequencer.getPattern(open303Core.sequencer.getActivePattern());
+    rosic::AcidPattern *pattern =
+        open303Core.sequencer.getPattern(open303Core.sequencer.getActivePattern());
     if (rowNr == 0)
     {
       if (value == 1.0)
@@ -701,139 +798,123 @@ void BassMatrix::OnParamChangeUI(int paramIdx, EParamSource source)
   {
     if (value == 1.0)
     {
-      open303Core.sequencer.setPattern(12 * open303Core.sequencer.getPatternMultiplier() + paramIdx - kBtnPtnC);
-      mSequencerSender.PushData({ kCtrlTagBtnSeq0, {CollectSequenceButtons(open303Core)} });
+      open303Core.sequencer.setPattern(12 * open303Core.sequencer.getPatternMultiplier() +
+                                       paramIdx - kBtnPtnC);
+      mSequencerSender.PushData({ kCtrlTagBtnSeq0, { CollectSequenceButtons(open303Core) } });
     }
     return;
   }
 
-  switch (paramIdx) {
-  case kBtnPtnOct2:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.setPatternMultiplier(0);
-      int patternNr = open303Core.sequencer.getActivePattern();
-      if (patternNr >= 12)
+  switch (paramIdx)
+  {
+    case kBtnPtnOct2:
+      if (value == 1.0)
       {
-        open303Core.sequencer.setPattern(patternNr - 12);
+        open303Core.sequencer.setPatternMultiplier(0);
+        int patternNr = open303Core.sequencer.getActivePattern();
+        if (patternNr >= 12)
+        {
+          open303Core.sequencer.setPattern(patternNr - 12);
+        }
+        mSequencerSender.PushData({ kCtrlTagBtnSeq0, { CollectSequenceButtons(open303Core) } });
       }
-      mSequencerSender.PushData({ kCtrlTagBtnSeq0, {CollectSequenceButtons(open303Core)} });
-    }
-    break;
-  case kBtnPtnOct3:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.setPatternMultiplier(1);
-      int patternNr = open303Core.sequencer.getActivePattern();
-      if (patternNr < 12)
+      break;
+    case kBtnPtnOct3:
+      if (value == 1.0)
       {
-        open303Core.sequencer.setPattern(patternNr + 12);
+        open303Core.sequencer.setPatternMultiplier(1);
+        int patternNr = open303Core.sequencer.getActivePattern();
+        if (patternNr < 12)
+        {
+          open303Core.sequencer.setPattern(patternNr + 12);
+        }
+        mSequencerSender.PushData({ kCtrlTagBtnSeq0, { CollectSequenceButtons(open303Core) } });
       }
-      mSequencerSender.PushData({ kCtrlTagBtnSeq0, {CollectSequenceButtons(open303Core)} });
-    }
-    break;
-  case kKnobLoopSize:
-    mKnobLoopSize = static_cast<int>(value);
-    break;
-  case kParamResonance:
-    open303Core.setResonance(value);
-    break;
-  case kParamCutOff:
-    open303Core.setCutoff(value);
-    break;
-  case kParamWaveForm:
-    if (value == 1.0)
-    {
-      open303Core.setWaveform(1.0); // Square
-    }
-    else
-    {
-      open303Core.setWaveform(0.0); // Saw
-    }
-    break;
-  case kParamTuning:
-    open303Core.setTuning(value);
-    break;
-  case kParamEnvMode:
-    open303Core.setEnvMod(value);
-    break;
-  case kParamDecay:
-    open303Core.setDecay(value);
-    break;
-  case kParamAccent:
-    open303Core.setAccent(value);
-    break;
-  case kParamVolume:
-    open303Core.setVolume(value);
-    break;
-  case kParamTempo:
-    assert(value >= 10);
-    assert(value <= 300);
-    open303Core.sequencer.setTempo(value);
-    break;
-  case kParamDrive:
-    open303Core.setTanhShaperDrive(value);
-    break;
-  case kParamStop:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.setMode(rosic::AcidSequencer::OFF);
-    }
-    break;
-  case kParamHostSync:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.setMode(rosic::AcidSequencer::HOST_SYNC);
-      mStartSyncWithHost = true;
-    }
-    break;
-  case kParamInternalSync:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.setMode(rosic::AcidSequencer::RUN);
-      mStartSyncWithHost = false;
-    }
-    break;
-  case kParamKeySync:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.setMode(rosic::AcidSequencer::KEY_SYNC);
-      mStartSyncWithHost = false;
-    }
-    break;
-  case kParamMidiPlay:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.setMode(rosic::AcidSequencer::MIDI_PLAY);
-      open303Core.sequencer.stop();
-      mStartSyncWithHost = false;
-    }
-    break;
-  case kParamCopy:
-    if (value == 1.0)
-    {
-    }
-    break;
-  case kParamClear:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.clearPattern(open303Core.sequencer.getActivePattern());
-      mSequencerSender.PushData({ kCtrlTagBtnSeq0, {CollectSequenceButtons(open303Core)} });
-    }
-    break;
-  case kParamRandomize:
-    if (value == 1.0)
-    {
-      open303Core.sequencer.randomizePattern(open303Core.sequencer.getActivePattern());
-      mSequencerSender.PushData({ kCtrlTagBtnSeq0, {CollectSequenceButtons(open303Core)} });
-    }
-    break;
-  default:
-    break;
+      break;
+    case kKnobLoopSize: mKnobLoopSize = static_cast<int>(value); break;
+    case kParamResonance: open303Core.setResonance(value); break;
+    case kParamCutOff: open303Core.setCutoff(value); break;
+    case kParamWaveForm:
+      if (value == 1.0)
+      {
+        open303Core.setWaveform(1.0);  // Square
+      }
+      else
+      {
+        open303Core.setWaveform(0.0);  // Saw
+      }
+      break;
+    case kParamTuning: open303Core.setTuning(value); break;
+    case kParamEnvMode: open303Core.setEnvMod(value); break;
+    case kParamDecay: open303Core.setDecay(value); break;
+    case kParamAccent: open303Core.setAccent(value); break;
+    case kParamVolume: open303Core.setVolume(value); break;
+    case kParamTempo:
+      assert(value >= 10);
+      assert(value <= 300);
+      open303Core.sequencer.setTempo(value);
+      break;
+    case kParamDrive: open303Core.setTanhShaperDrive(value); break;
+    case kParamStop:
+      if (value == 1.0)
+      {
+        open303Core.sequencer.setMode(rosic::AcidSequencer::OFF);
+      }
+      break;
+    case kParamHostSync:
+      if (value == 1.0)
+      {
+        open303Core.sequencer.setMode(rosic::AcidSequencer::HOST_SYNC);
+        mStartSyncWithHost = true;
+      }
+      break;
+    case kParamInternalSync:
+      if (value == 1.0)
+      {
+        open303Core.sequencer.setMode(rosic::AcidSequencer::RUN);
+        mStartSyncWithHost = false;
+      }
+      break;
+    case kParamKeySync:
+      if (value == 1.0)
+      {
+        open303Core.sequencer.setMode(rosic::AcidSequencer::KEY_SYNC);
+        mStartSyncWithHost = false;
+      }
+      break;
+    case kParamMidiPlay:
+      if (value == 1.0)
+      {
+        open303Core.sequencer.setMode(rosic::AcidSequencer::MIDI_PLAY);
+        open303Core.sequencer.stop();
+        mStartSyncWithHost = false;
+      }
+      break;
+    case kParamCopy:
+      if (value == 1.0)
+      {
+      }
+      break;
+    case kParamClear:
+      if (value == 1.0)
+      {
+        open303Core.sequencer.clearPattern(open303Core.sequencer.getActivePattern());
+        mSequencerSender.PushData({ kCtrlTagBtnSeq0, { CollectSequenceButtons(open303Core) } });
+      }
+      break;
+    case kParamRandomize:
+      if (value == 1.0)
+      {
+        open303Core.sequencer.randomizePattern(open303Core.sequencer.getActivePattern());
+        mSequencerSender.PushData({ kCtrlTagBtnSeq0, { CollectSequenceButtons(open303Core) } });
+      }
+      break;
+    default: break;
   }
 }
 
-bool BassMatrix::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
+bool
+BassMatrix::OnMessage(int msgTag, int ctrlTag, int dataSize, const void *pData)
 {
   return false;
 }
