@@ -46,7 +46,7 @@ jobs:
           ./makedist-web.sh off ${{env.URL}}
           
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{env.PROJECT_NAME}}-web
           path: ${{env.PROJECT_NAME}}/build-web
