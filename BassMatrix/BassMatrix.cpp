@@ -200,10 +200,14 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
   mLayoutFunc = [&](IGraphics *pGraphics)
   {
     pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
-    //    pGraphics->AttachPanelBackground(COLOR_GRAY);
+
     // Background
+#ifdef WAM_API
+    pGraphics->AttachPanelBackground(COLOR_GRAY);
+#else
     pGraphics->LoadBitmap(BACKGROUND_FN, 1, true);
     pGraphics->AttachBackground(BACKGROUND_FN);
+#endif
 
     // Knobs
     const IBitmap knobRotateBitmap = pGraphics->LoadBitmap(PNG6062_FN, 127);
@@ -725,17 +729,17 @@ BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, in
       {
         if (open303Core.sequencer.getStep() == 0 && !mHasChanged)
         {
-        mHasChanged = true;
-        mCurrentPattern = (mCurrentPattern + 1) % mKnobLoopSize;
+          mHasChanged = true;
+          mCurrentPattern = (mCurrentPattern + 1) % mKnobLoopSize;
           open303Core.sequencer.setPattern(mCurrentPattern);
           mSequencerSender.PushData({ kCtrlTagSeq0, { CollectSequenceButtons(open303Core) } });
           //          mPatternSender.PushData({ kCtrlTagPattern0, { mCurrentPattern } });
           mSelectedOctavSender.PushData({ kCtrlTagOctav0, { mSelectedOctav } });
           mSelectedPatternSender.PushData({ kCtrlTagPattern0, { mSelectedPattern } });
-      }
+        }
         if (open303Core.sequencer.getStep() != 0)
         {
-        mHasChanged = false;
+          mHasChanged = false;
         }
       }
     }
