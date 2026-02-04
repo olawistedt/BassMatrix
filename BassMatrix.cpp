@@ -392,7 +392,7 @@ bool
 BassMatrix::SerializeState(IByteChunk &chunk) const
 {
 #if defined(_DEBUG) && defined(_WIN32)
-  OutputDebugString(L"SerializeState() called\n");
+  OutputDebugStringW(L"SerializeState() called\n");
 #endif
 
   TRACE
@@ -424,12 +424,12 @@ BassMatrix::SerializeState(IByteChunk &chunk) const
       //      Trace(TRACELOC, " %s %d %f", "Sequencer button nr", patternNr, elem ? 1.0 : 0.0);
       double v = elem ? 1.0 : 0.0;
 #if defined(_DEBUG) && defined(_WIN32)
-      OutputDebugString(v == 1.0 ? L"*" : L"-");
+      OutputDebugStringW(v == 1.0 ? L"*" : L"-");
 #endif  // _DEBUG
       savedOK &= (chunk.Put(&v) > 0);
     }
 #if defined(_DEBUG) && defined(_WIN32)
-    OutputDebugString(L"\n");
+    OutputDebugStringW(L"\n");
 #endif  // _DEBUG
   }
 
@@ -462,7 +462,7 @@ int
 BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
 {
 #if defined(_DEBUG) && defined(_WIN32)
-  OutputDebugString(L"UnserializeState() called\n");
+  OutputDebugStringW(L"UnserializeState() called\n");
 #endif
 
   TRACE
@@ -505,7 +505,7 @@ BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
       pos = chunk.Get(&v, pos);
       //      Trace(TRACELOC, "%d %s %d %f", patternNr, "Sequencer button", i, v);
 #if defined(_DEBUG) && defined(_WIN32)
-      OutputDebugString(v == 1.0 ? L"*" : L"-");
+      OutputDebugStringW(v == 1.0 ? L"*" : L"-");
 #endif  // _DEBUG
 
       if (v == 1.0)
@@ -521,7 +521,7 @@ BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
       //      Trace(TRACELOC, "%d %s %d %f", patternNr, "Property button", i, v);
 
 #if defined(_DEBUG) && defined(_WIN32)
-      OutputDebugString(v == 1.0 ? L"*" : L"-");
+      OutputDebugStringW(v == 1.0 ? L"*" : L"-");
 #endif  // _DEBUG
 
       if (i < 16)
@@ -549,7 +549,7 @@ BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
       }
     }
 #if defined(_DEBUG) && defined(_WIN32)
-    OutputDebugString(L"\n");
+    OutputDebugStringW(L"\n");
 #endif  // _DEBUG
   }
 
