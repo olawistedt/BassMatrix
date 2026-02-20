@@ -77,18 +77,15 @@ ReadSettingsFromProgramDataPath(double &plugUIScale)
 class TempoLabelControl : public IControl
 {
 public:
-  TempoLabelControl(IRECT bounds, int paramIdx) : IControl(bounds, paramIdx)
-  {
-    Hide(true);
-  }
+  TempoLabelControl(IRECT bounds, int paramIdx) : IControl(bounds, paramIdx) { Hide(true); }
 
-  void Draw(IGraphics& g) override
+  void Draw(IGraphics &g) override
   {
     g.FillRect(COLOR_BLACK, mRECT);
-    
+
     WDL_String str;
     GetParam()->GetDisplay(str);
-    
+
     IText text(14.f, COLOR_WHITE);
     g.DrawText(text, str.Get(), mRECT);
   }
@@ -97,24 +94,25 @@ public:
 class TempoKnobControl : public IBKnobControl
 {
 public:
-  TempoKnobControl(float x, float y, const IBitmap& bitmap, int paramIdx, int labelTag)
-    : IBKnobControl(x, y, bitmap, paramIdx), mLabelTag(labelTag)
+  TempoKnobControl(float x, float y, const IBitmap &bitmap, int paramIdx, int labelTag) :
+    IBKnobControl(x, y, bitmap, paramIdx),
+    mLabelTag(labelTag)
   {
   }
 
-  void OnMouseDown(float x, float y, const IMouseMod& mod) override
+  void OnMouseDown(float x, float y, const IMouseMod &mod) override
   {
     IBKnobControl::OnMouseDown(x, y, mod);
-    if (auto* pLabel = GetUI()->GetControlWithTag(mLabelTag))
+    if (auto *pLabel = GetUI()->GetControlWithTag(mLabelTag))
     {
       pLabel->Hide(false);
     }
   }
 
-  void OnMouseUp(float x, float y, const IMouseMod& mod) override
+  void OnMouseUp(float x, float y, const IMouseMod &mod) override
   {
     IBKnobControl::OnMouseUp(x, y, mod);
-    if (auto* pLabel = GetUI()->GetControlWithTag(mLabelTag))
+    if (auto *pLabel = GetUI()->GetControlWithTag(mLabelTag))
     {
       pLabel->Hide(true);
     }
@@ -277,8 +275,10 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
     pGraphics->AttachControl(new IBKnobControl(710, 30, knobLittleBitmap, kParamDecay));
     pGraphics->AttachControl(new IBKnobControl(810, 30, knobLittleBitmap, kParamAccent));
     pGraphics->AttachControl(new IBKnobControl(108, 30, knobLittleBitmap, kParamDrive));
-    pGraphics->AttachControl(new TempoLabelControl(IRECT(100, 135, 140, 155), kParamTempo), kCtrlTagTempoLabel);
-    pGraphics->AttachControl(new TempoKnobControl(0 + 210 - 175, 130, knobBigBitmap, kParamTempo, kCtrlTagTempoLabel));
+    pGraphics->AttachControl(new TempoLabelControl(IRECT(100, 135, 140, 155), kParamTempo),
+                             kCtrlTagTempoLabel);
+    pGraphics->AttachControl(
+        new TempoKnobControl(0 + 210 - 175, 130, knobBigBitmap, kParamTempo, kCtrlTagTempoLabel));
     //    pGraphics->AttachControl(new IBKnobControl(510, 130, knobBigBitmap, kParamDrive));
     pGraphics->AttachControl(new IBKnobControl(1130 - 210, 130, knobBigBitmap, kParamVolume));
 
@@ -814,8 +814,9 @@ BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, in
           mHasChanged = true;
           mCurrentPattern = (mCurrentPattern + 1) % mKnobLoopSize;
           open303Core.sequencer.setPattern(mCurrentPattern);
+          mSelectedOctav = mCurrentPattern / 12;
+          mSelectedPattern = mCurrentPattern % 12;
           mSequencerSender.PushData({ kCtrlTagSeq0, { CollectSequenceButtons(open303Core) } });
-          //          mPatternSender.PushData({ kCtrlTagPattern0, { mCurrentPattern } });
           mSelectedOctavSender.PushData({ kCtrlTagOctav0, { mSelectedOctav } });
           mSelectedPatternSender.PushData({ kCtrlTagPattern0, { mSelectedPattern } });
         }
