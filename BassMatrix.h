@@ -57,6 +57,7 @@ enum ECtrlTags
   kCtrlTagPlayMode0,
   kCtrlEffects = kCtrlTagPlayMode0 + 5,
   kCtrlTagBtnCopy,
+  kCtrlTagTempoLabel,
   kNumCtrlTags
 };
 

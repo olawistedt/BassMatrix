@@ -71,6 +71,56 @@ ReadSettingsFromProgramDataPath(double &plugUIScale)
 
 #endif
 
+class TempoLabelControl : public IControl
+{
+public:
+  TempoLabelControl(IRECT bounds, int paramIdx) : IControl(bounds, paramIdx)
+  {
+    Hide(true);
+  }
+
+  void Draw(IGraphics& g) override
+  {
+    g.FillRect(COLOR_BLACK, mRECT);
+    
+    WDL_String str;
+    GetParam()->GetDisplay(str);
+    
+    IText text(14.f, COLOR_WHITE);
+    g.DrawText(text, str.Get(), mRECT);
+  }
+};
+
+class TempoKnobControl : public IBKnobControl
+{
+public:
+  TempoKnobControl(float x, float y, const IBitmap& bitmap, int paramIdx, int labelTag)
+    : IBKnobControl(x, y, bitmap, paramIdx), mLabelTag(labelTag)
+  {
+  }
+
+  void OnMouseDown(float x, float y, const IMouseMod& mod) override
+  {
+    IBKnobControl::OnMouseDown(x, y, mod);
+    if (auto* pLabel = GetUI()->GetControlWithTag(mLabelTag))
+    {
+      pLabel->Hide(false);
+    }
+  }
+
+  void OnMouseUp(float x, float y, const IMouseMod& mod) override
+  {
+    IBKnobControl::OnMouseUp(x, y, mod);
+    if (auto* pLabel = GetUI()->GetControlWithTag(mLabelTag))
+    {
+      pLabel->Hide(true);
+    }
+  }
+
+private:
+  int mLabelTag;
+};
+
 BassMatrix::BassMatrix(const InstanceInfo &info) :
   Plugin(info, MakeConfig(kNumParams, kNumPresets)),
   mLastSamplePos(0),
@@ -200,6 +250,7 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
   mLayoutFunc = [&](IGraphics *pGraphics)
   {
     pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
+    pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
     //    pGraphics->AttachPanelBackground(COLOR_GRAY);
     // Background
     pGraphics->LoadBitmap(BACKGROUND_FN, 1, true);
@@ -223,7 +274,8 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
     pGraphics->AttachControl(new IBKnobControl(710, 30, knobLittleBitmap, kParamDecay));
     pGraphics->AttachControl(new IBKnobControl(810, 30, knobLittleBitmap, kParamAccent));
 
-    pGraphics->AttachControl(new IBKnobControl(0 + 210 - 175, 130, knobBigBitmap, kParamTempo));
+    pGraphics->AttachControl(new TempoLabelControl(IRECT(100, 135, 140, 155), kParamTempo), kCtrlTagTempoLabel);
+    pGraphics->AttachControl(new TempoKnobControl(0 + 210 - 175, 130, knobBigBitmap, kParamTempo, kCtrlTagTempoLabel));
     //    pGraphics->AttachControl(new IBKnobControl(510, 130, knobBigBitmap, kParamDrive));
     pGraphics->AttachControl(new IBKnobControl(1130 - 210, 130, knobBigBitmap, kParamVolume));
 
