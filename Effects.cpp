@@ -1,4 +1,6 @@
 #include "Effects.h"
+#include <algorithm>
+#include <cmath>
 
 // Amazon Q
 AcidStereoDelay::AcidStereoDelay(double sampleRate) :
@@ -182,4 +184,58 @@ processAcidTubeSaturatorBlock(double sampleRate, double input)
   saturator.setMix(1.0);    // 100% wet
 
   return saturator.process(input);
+}
+
+class SimpleCompressor
+{
+public:
+  SimpleCompressor() :
+    threshold(0.5), ratio(4.0), attack(0.010), release(0.100), makeup(1.5), env(0.0), sampleRate(44100.0)
+  {
+    calcCoeffs();
+  }
+
+  void setSampleRate(double sr)
+  {
+    if (sampleRate != sr)
+    {
+      sampleRate = sr;
+      calcCoeffs();
+    }
+  }
+
+  void calcCoeffs()
+  {
+    attackCoeff = exp(-1.0 / (sampleRate * attack));
+    releaseCoeff = exp(-1.0 / (sampleRate * release));
+  }
+
+  std::pair<double, double> process(double inL, double inR)
+  {
+    double det = std::max(std::abs(inL), std::abs(inR));
+
+    if (det > env)
+      env = attackCoeff * env + (1.0 - attackCoeff) * det;
+    else
+      env = releaseCoeff * env + (1.0 - releaseCoeff) * det;
+
+    double gain = 1.0;
+    if (env > threshold)
+    {
+      gain = pow(env / threshold, 1.0 / ratio - 1.0);
+    }
+
+    return { inL * gain * makeup, inR * gain * makeup };
+  }
+
+private:
+  double threshold, ratio, attack, release, makeup, env, sampleRate, attackCoeff, releaseCoeff;
+};
+
+std::pair<double, double>
+processCompressorBlock(double sampleRate, std::pair<double, double> input)
+{
+  static SimpleCompressor comp;
+  comp.setSampleRate(sampleRate);
+  return comp.process(input.first, input.second);
 }

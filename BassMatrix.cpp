@@ -7,6 +7,9 @@
 #include <fstream>
 #include "Effects.h"
 
+std::pair<double, double>
+processCompressorBlock(double sampleRate, std::pair<double, double> input);
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // Windows specific
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -167,7 +170,7 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
   GetParam(kParamAccent)->InitDouble("Accent", 50.0, 0.0, 100.0, 1.0, "%");
   GetParam(kParamVolume)->InitDouble("Volume", -30.0, -75.0, 0.0, 0.1, "dB");
   GetParam(kParamTempo)->InitDouble("Tempo", 120.0, 10.0, 300.0, 1.0, "bpm");
-  GetParam(kParamDrive)->InitDouble("Drive", 36.9, 0.0, 50.0, 1.0, "bpm");
+  GetParam(kParamDrive)->InitDouble("Drive", 13.0, 1.0, 50.0, 0.1, "dB");
 
   GetParam(kParamWaveForm)->InitBool("Waveform", false);
   GetParam(kParamEffects)->InitBool("Effects", true);
@@ -273,7 +276,7 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
     pGraphics->AttachControl(new IBKnobControl(610, 30, knobLittleBitmap, kParamEnvMode));
     pGraphics->AttachControl(new IBKnobControl(710, 30, knobLittleBitmap, kParamDecay));
     pGraphics->AttachControl(new IBKnobControl(810, 30, knobLittleBitmap, kParamAccent));
-
+    pGraphics->AttachControl(new IBKnobControl(108, 30, knobLittleBitmap, kParamDrive));
     pGraphics->AttachControl(new TempoLabelControl(IRECT(100, 135, 140, 155), kParamTempo), kCtrlTagTempoLabel);
     pGraphics->AttachControl(new TempoKnobControl(0 + 210 - 175, 130, knobBigBitmap, kParamTempo, kCtrlTagTempoLabel));
     //    pGraphics->AttachControl(new IBKnobControl(510, 130, knobBigBitmap, kParamDrive));
@@ -881,10 +884,12 @@ BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, in
 
     if (mUseEffects)
     {
-      double tubeOut = processAcidTubeSaturatorBlock(GetSampleRate(), tb303Oout);
+      double drive = std::tanh(tb303Oout * GetParam(kParamDrive)->Value());
+      double tubeOut = processAcidTubeSaturatorBlock(GetSampleRate(), drive);
       std::pair<double, double> delayOut = processDelayReverbAudioBlock(GetSampleRate(), tubeOut);
-      *out01++ = delayOut.first;
-      *out02++ = delayOut.second;
+      std::pair<double, double> compOut = processCompressorBlock(GetSampleRate(), delayOut);
+      *out01++ = compOut.first;
+      *out02++ = compOut.second;
     }
     else
     {
@@ -1187,7 +1192,6 @@ BassMatrix::OnParamChange(int paramIdx)
       assert(value <= 300);
       open303Core.sequencer.setTempo(value);
       break;
-    case kParamDrive: open303Core.setTanhShaperDrive(value); break;
     case kParamCopy:
       if (value == 1.0)
       {
