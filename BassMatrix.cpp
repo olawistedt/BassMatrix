@@ -277,8 +277,9 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
     pGraphics->AttachControl(new PtnModBtnControl(369, 178, btnClearBitmap, kParamClear));
     const IBitmap btnRandomizeBitmap = pGraphics->LoadBitmap(PNGRANDOMIZE_FN, 2, true);
     pGraphics->AttachControl(new PtnModBtnControl(369, 218, btnRandomizeBitmap, kParamRandomize));
-    //    const IBitmap btnCopyBitmap = pGraphics->LoadBitmap(PNGCOPY_FN, 2, true);
-    //    pGraphics->AttachControl(new PtnModBtnControl(369, 258, btnCopyBitmap, kParamCopy));
+    const IBitmap btnCopyBitmap = pGraphics->LoadBitmap(PNGCOPY_FN, 1, true);
+    pGraphics->AttachControl(new PtnModBtnControl(369, 258, btnCopyBitmap, kParamCopy),
+                             kCtrlTagBtnCopy);
 
     // Loop size knob
     const IBitmap btnPatternLoopSizeBitmap =
@@ -665,6 +666,30 @@ BassMatrix::CollectSequenceButtons(rosic::Open303 &open303Core, int patternNr)
   return seq;
 }
 
+std::string
+BassMatrix::GetPatternName(int patternIdx)
+{
+  const char *noteNames[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+
+  int octav = patternIdx / 12;
+  int pattern = patternIdx % 12;
+  std::string octavStr = (octav == 0) ? "Octav 2" : "Octav 3";
+
+  return octavStr + " " + noteNames[pattern];
+}
+
+void
+BassMatrix::CopyPattern(int fromPatternIdx, int toPatternIdx)
+{
+  if (fromPatternIdx < 0 || fromPatternIdx >= 24 || toPatternIdx < 0 || toPatternIdx >= 24)
+  {
+    return;
+  }
+
+  open303Core.sequencer.copyPattern(fromPatternIdx, toPatternIdx);
+}
+
+
 #if IPLUG_DSP
 
 void
@@ -731,17 +756,17 @@ BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, in
       {
         if (open303Core.sequencer.getStep() == 0 && !mHasChanged)
         {
-        mHasChanged = true;
-        mCurrentPattern = (mCurrentPattern + 1) % mKnobLoopSize;
+          mHasChanged = true;
+          mCurrentPattern = (mCurrentPattern + 1) % mKnobLoopSize;
           open303Core.sequencer.setPattern(mCurrentPattern);
           mSequencerSender.PushData({ kCtrlTagSeq0, { CollectSequenceButtons(open303Core) } });
           //          mPatternSender.PushData({ kCtrlTagPattern0, { mCurrentPattern } });
           mSelectedOctavSender.PushData({ kCtrlTagOctav0, { mSelectedOctav } });
           mSelectedPatternSender.PushData({ kCtrlTagPattern0, { mSelectedPattern } });
-      }
+        }
         if (open303Core.sequencer.getStep() != 0)
         {
-        mHasChanged = false;
+          mHasChanged = false;
         }
       }
     }
@@ -1114,6 +1139,108 @@ BassMatrix::OnParamChange(int paramIdx)
     case kParamCopy:
       if (value == 1.0)
       {
+
+        // Copy button
+        {
+          if (GetUI())
+          {
+            // Step 1: Show menu to select SOURCE pattern
+            IPopupMenu sourceMenu;
+            for (int octav = 0; octav < 2; octav++)
+            {
+              for (int pattern = 0; pattern < 12; pattern++)
+              {
+                int idx = octav * 12 + pattern;
+                std::string name = "Copy from: " + GetPatternName(idx);
+                sourceMenu.AddItem(name.c_str());
+              }
+            }
+
+            sourceMenu.SetFunction(
+                [this](IPopupMenu *pSelectedMenu)
+                {
+                  int sourceIdx = pSelectedMenu->GetChosenItemIdx();
+
+#ifdef _WIN32
+                  OutputDebugStringA(
+                      ("Source chosen: " + std::to_string(sourceIdx) + "\n").c_str());
+#endif
+
+                  if (sourceIdx >= 0 && sourceIdx < 24)
+                  {
+                    // Step 2: Show menu to select DESTINATION pattern
+                    IPopupMenu destMenu;
+                    for (int octav = 0; octav < 2; octav++)
+                    {
+                      for (int pattern = 0; pattern < 12; pattern++)
+                      {
+                        int idx = octav * 12 + pattern;
+                        if (idx != sourceIdx)  // Don't show source as destination
+                        {
+                          std::string name = "Copy to: " + GetPatternName(idx);
+                          destMenu.AddItem(name.c_str());
+                        }
+                      }
+                    }
+
+                    destMenu.SetFunction(
+                        [this, sourceIdx](IPopupMenu *pDestMenu)
+                        {
+                          int destChosenIdx = pDestMenu->GetChosenItemIdx();
+
+#ifdef _WIN32
+                          OutputDebugStringA(
+                              ("Dest chosen idx: " + std::to_string(destChosenIdx) + "\n").c_str());
+#endif
+
+                          if (destChosenIdx >= 0 &&
+                              destChosenIdx < 23)  // 23 because we excluded one
+                          {
+                            // Map the chosen index back to actual pattern index
+                            // (accounting for skipped source pattern)
+                            int destIdx = destChosenIdx;
+                            if (destChosenIdx >= sourceIdx)
+                            {
+                              destIdx++;  // Adjust for the skipped source pattern
+                            }
+
+#ifdef _WIN32
+                            OutputDebugStringA(("Copying from " + std::to_string(sourceIdx) +
+                                                " to " + std::to_string(destIdx) + "\n")
+                                                   .c_str());
+#endif
+
+                            CopyPattern(sourceIdx, destIdx);
+
+                            // Update the sequencer display if the current pattern was modified
+                            if (destIdx == (mSelectedOctav * 12 + mSelectedPattern))
+                            {
+                              mSequencerSender.PushData(
+                                  { kCtrlTagSeq0,
+                                    { CollectSequenceButtons(open303Core, destIdx) } });
+                            }
+                          }
+
+                          // Always reset the copy button when the destination menu is closed
+                          GetParam(kParamCopy)->Set(0.0);
+                        });
+
+                    IControl *pControl = GetUI()->GetControlWithTag(kCtrlTagBtnCopy);
+                    if (pControl)
+                      GetUI()->CreatePopupMenu(*pControl, destMenu, pControl->GetRECT());
+                  }
+                  else
+                  {
+                    // User cancelled the source menu, reset button
+                    GetParam(kParamCopy)->Set(0.0);
+                  }
+                });
+            IControl *pControl = GetUI()->GetControlWithTag(kCtrlTagBtnCopy);
+            if (pControl)
+              GetUI()->CreatePopupMenu(*pControl, sourceMenu, pControl->GetRECT());
+          }
+          return;
+        }
       }
       break;
     case kParamClear:

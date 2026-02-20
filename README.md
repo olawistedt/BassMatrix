@@ -7,6 +7,10 @@ A Roland TB-303 clone
 New features to implement
 
 * A randomized pattern at startup.
+* Save in APP mode
+* Show label with tempo
+* Copy menu
+* When looping the octav and pattern buttons should be changed.
 
 Bugs
 

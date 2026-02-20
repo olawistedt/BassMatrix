@@ -86,6 +86,6 @@
 #define PNGBTNPATAa_FN "btnPatA#.png"
 #define PNGBTNPATB_FN "btnPatB.png"
 #define PNGKNOBPATLOOPSIZE_FN "knobLoopSize.png"
-#define PNGCOPY_FN "btnPtnCopy.png"
+#define PNGCOPY_FN "btnPtnCopy1.png"
 #define PNGCLEAR_FN "btnPtnClear.png"
 #define PNGRANDOMIZE_FN "btnPtnRand.png"

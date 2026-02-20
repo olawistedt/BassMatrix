@@ -56,6 +56,7 @@ enum ECtrlTags
   kCtrlWaveForm = kCtrlTagOctav0 + 2,
   kCtrlTagPlayMode0,
   kCtrlEffects = kCtrlTagPlayMode0 + 5,
+  kCtrlTagBtnCopy,
   kNumCtrlTags
 };
 
@@ -99,6 +100,9 @@ protected:
   IMidiQueue mMidiQueue;
 
 private:
+  void CopyPattern(int fromPatternIdx, int toPatternIdx);
+  std::string GetPatternName(int patternIdx);
+
   // the embedded core dsp object:
   rosic::Open303 open303Core;
   ISender<1, 1, int> mLedSeqSender;
