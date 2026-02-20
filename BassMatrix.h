@@ -73,9 +73,9 @@ public:
 #if IPLUG_EDITOR
   //  void OnParentWindowResize(int width, int height) override;
   bool OnHostRequestingSupportedViewConfiguration(int width, int height) override { return true; }
-#if defined(VST3_API) || defined(AU_API)
   bool SerializeState(IByteChunk &chunk) const override;
   int UnserializeState(const IByteChunk &chunk, int startPos) override;
+#if defined(VST3_API) || defined(AU_API)
   IGraphics *CreateGraphics() override;
 #endif  // API
 #endif  // IPLUG_EDITOR

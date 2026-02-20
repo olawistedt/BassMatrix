@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <sstream>
 #include <fstream>
+#include <vector>
 #include "Effects.h"
 
 std::pair<double, double>
@@ -38,6 +39,18 @@ getSettingsFilePath()
   std::filesystem::create_directories(directoryPath);
 
   return directoryPath + L"\\settings.json";
+}
+
+std::wstring
+getStateFilePath()
+{
+  wchar_t programDataPath[MAX_PATH];
+  SHGetSpecialFolderPathW(0, programDataPath, CSIDL_COMMON_APPDATA, false);
+
+  std::wstring directoryPath = std::wstring(programDataPath) + L"\\Witech\\BassMatrix";
+  std::filesystem::create_directories(directoryPath);
+
+  return directoryPath + L"\\state.bin";
 }
 
 void
@@ -421,12 +434,44 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
 #endif
   };
 #endif
+
+#if defined(APP_API) && defined(_WIN32)
+  {
+    std::ifstream stateFile(getStateFilePath(), std::ios::binary);
+    if (stateFile.is_open())
+    {
+      stateFile.seekg(0, std::ios::end);
+      std::streamsize size = stateFile.tellg();
+      stateFile.seekg(0, std::ios::beg);
+      std::vector<char> data(static_cast<size_t>(size));
+      if (stateFile.read(data.data(), size))
+      {
+        IByteChunk chunk;
+        chunk.PutBytes(data.data(), static_cast<int>(size));
+        UnserializeState(chunk, 0);
+      }
+    }
+  }
+#endif
 }
 
 BassMatrix::~BassMatrix()
 {
 #ifdef _WIN32
   WriteSettingsToProgramDataPath(mPlugUIScale);
+#endif
+#if defined(APP_API) && defined(_WIN32)
+  {
+    IByteChunk chunk;
+    if (SerializeState(chunk))
+    {
+      std::ofstream stateFile(getStateFilePath(), std::ios::binary);
+      if (stateFile.is_open())
+      {
+        stateFile.write(reinterpret_cast<const char *>(chunk.GetData()), chunk.Size());
+      }
+    }
+  }
 #endif
 }
 
@@ -443,7 +488,6 @@ BassMatrix::~BassMatrix()
 // Save plugin settings to hard drive. First save is junk.
 //
 #if IPLUG_EDITOR
-#if defined(VST3_API) || defined(AU_API)
 bool
 BassMatrix::SerializeState(IByteChunk &chunk) const
 {
@@ -650,7 +694,6 @@ BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
 
   return pos;
 }
-#endif  // API
 #endif  // IPLUG_EDITOR
 
 
