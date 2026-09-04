@@ -2,6 +2,7 @@
 
 #include "IPlug_include_in_plug_hdr.h"
 #include "IControls.h"
+#include "Effects.h"
 #include "open303/Source/DSPCode/rosic_Open303.h"
 #include "IPlugProcessor.h"
 #include "IPlugEditorDelegate.h"
@@ -123,4 +124,17 @@ private:
   bool mUseEffects;
   bool mHasLoadingPresets;
   int mSelectedPlayMode;
+
+  // Drive chain. These are IIR stages, so they must persist across samples and
+  // across blocks — constructing them inside the render loop zeroes their
+  // state on every sample and stops them filtering at all.
+  AcidDrive mDrive;
+  PeakingEQ mDriveEQ;
+
+  // open303 applies the Volume knob to its own output, so the level reaching
+  // the drive stage depends on it. These let us divide it back out and re-apply
+  // it afterwards, which keeps the Drive knob meaning the same thing at any
+  // volume setting.
+  double mVolumeGain = 1.0;
+  double mVolumeGainInv = 1.0;
 };

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <algorithm>  // For std::min, std::clamp
 #include <utility>    // For std::pair, std::make_pair
 #include <cstring>    // For memory operations
@@ -268,6 +270,161 @@ std::pair<double, double> processDelayReverbAudioBlock(double sampleRate, double
 //
 
 
+//
+// Drive
+//
+// A TB-303-clone style overdrive stage: a pre-gain sweep into an asymmetric
+// soft clipper, followed by a tone tilt and only partial gain make-up.
+//
+// Three things make this feel like the drive knob on a hardware clone rather
+// than a "distortion on/off" switch:
+//
+//  * The pre-gain sweep is exponential (0 dB .. +32 dB). An even
+//    dB-per-degree taper is what makes a gain knob feel linear to the ear
+//    over its whole travel instead of doing everything in the first 20%.
+//
+//  * The clipping is *asymmetric*, and gets more so as the knob comes up: a
+//    bias pushes the signal off-centre and the negative half is squashed
+//    harder than the positive one. That asymmetry is what generates the
+//    even-order harmonics behind the vocal, growling quality of an
+//    overdriven 303. A plain symmetric tanh only ever produces odd harmonics
+//    and lands somewhere between "fuzz box" and "nothing".
+//
+//  * Make-up gain only *partially* compensates for the added pre-gain, so
+//    turning the knob up makes the sound both dirtier and louder. Both cues
+//    matter — fully levelling the output is the single most reliable way to
+//    make a drive knob feel like it does nothing at all.
+//
+class AcidDrive
+{
+public:
+  AcidDrive(double sampleRate = 44100.0)
+  {
+    setAmount(0.0);
+    setSampleRate(sampleRate);
+  }
+
+  void setSampleRate(double sr)
+  {
+    if (sr <= 0.0)
+      return;
+
+    mSampleRate = sr;
+
+    // Post-clip tone control. Clipping a 303 line generates a lot of energy
+    // well above the musical range; rolling it off takes the edge off the
+    // aliasing that energy folds back down as. Kept gentle and high — measured
+    // against a real open303 note it costs almost none of the added harmonic
+    // character, so it is close to free insurance.
+    const double fc = std::min(9000.0, 0.45 * mSampleRate);
+    mLpCoeff = std::exp(-2.0 * M_PI * fc / mSampleRate);
+
+    // 20 Hz DC blocker, needed because the bias below deliberately shifts the
+    // waveform off-centre.
+    mDcCoeff = 1.0 - (2.0 * M_PI * 20.0 / mSampleRate);
+
+    // ~15 ms parameter smoothing, so automating or dragging the knob glides
+    // instead of stepping the gain and clicking.
+    mSmoothCoeff = 1.0 - std::exp(-1.0 / (0.015 * mSampleRate));
+
+    reset();
+  }
+
+  void reset()
+  {
+    mLp1 = 0.0;
+    mLp2 = 0.0;
+    mDcLastIn = 0.0;
+    mDcLastOut = 0.0;
+    snapToTarget();
+  }
+
+  // amount: 0.0 = clean, 1.0 = fully driven.
+  void setAmount(double amount)
+  {
+    mAmountTarget = my_clamp(amount, 0.0, 1.0);
+
+    mPreGainTarget = std::pow(10.0, (kMaxDriveDb * mAmountTarget) / 20.0);
+
+    // pow(preGain, -kMakeupExp) claws back most, but deliberately not all, of
+    // the pre-gain. Net result is a few dB louder at full drive than clean.
+    mMakeupTarget = (1.0 / kInputTrim) * std::pow(mPreGainTarget, -kMakeupExp);
+
+    mBiasTarget = 0.35 * mAmountTarget;        // asymmetric operating point
+    mAsymTarget = 1.0 + 0.35 * mAmountTarget;  // negative half squashed harder
+  }
+
+  // The smoothed value, so downstream stages track the knob the same way.
+  double getAmount() const { return mAmount; }
+
+  double process(double input)
+  {
+    mAmount += (mAmountTarget - mAmount) * mSmoothCoeff;
+    mPreGain += (mPreGainTarget - mPreGain) * mSmoothCoeff;
+    mMakeup += (mMakeupTarget - mMakeup) * mSmoothCoeff;
+    mBias += (mBiasTarget - mBias) * mSmoothCoeff;
+    mAsym += (mAsymTarget - mAsym) * mSmoothCoeff;
+
+    // kInputTrim keeps the clean end of the knob inside the linear region of
+    // the tanh curve, so "drive off" really is transparent instead of
+    // arriving pre-cooked — which is what leaves room for the rest of the
+    // sweep to be audible.
+    const double x = input * kInputTrim * mPreGain + mBias;
+
+    const double shaped = (x >= 0.0) ? std::tanh(x) : std::tanh(x * mAsym) / mAsym;
+
+    // Strip the DC that the bias and the asymmetry introduce.
+    double out = shaped - mDcLastIn + mDcCoeff * mDcLastOut;
+    mDcLastIn = shaped;
+    mDcLastOut = out;
+
+    // Two cascaded one-poles, blended in proportionally to the drive so a
+    // clean setting stays fully open.
+    mLp1 += (out - mLp1) * (1.0 - mLpCoeff);
+    mLp2 += (mLp1 - mLp2) * (1.0 - mLpCoeff);
+    out += (mLp2 - out) * (0.30 * mAmount);
+
+    return out * mMakeup;
+  }
+
+private:
+  // Tuned by sweeping these three against a real open303 note rendered through
+  // the same peaking EQ that feeds this stage, selecting for: a waveform that
+  // keeps changing across the whole knob travel, a level that rises ~9-11 dB
+  // and never falls back, and a genuinely unity-gain clean setting.
+  //
+  // kInputTrim looks small because the signal arriving here is hot: open303 at
+  // unity volume peaks around 2.5, and the +13 dB EQ takes that past 5.
+  static constexpr double kMaxDriveDb = 32.0;   // pre-gain at the top of the knob
+  static constexpr double kInputTrim = 0.115;   // headroom trim, undone by the make-up gain
+  static constexpr double kMakeupExp = 0.30;    // 0 = no make-up, 1 = fully levelled
+
+  void snapToTarget()
+  {
+    mAmount = mAmountTarget;
+    mPreGain = mPreGainTarget;
+    mMakeup = mMakeupTarget;
+    mBias = mBiasTarget;
+    mAsym = mAsymTarget;
+  }
+
+  double mSampleRate = 44100.0;
+
+  double mAmount = 0.0, mAmountTarget = 0.0;
+  double mPreGain = 1.0, mPreGainTarget = 1.0;
+  double mMakeup = 1.0, mMakeupTarget = 1.0;
+  double mBias = 0.0, mBiasTarget = 0.0;
+  double mAsym = 1.0, mAsymTarget = 1.0;
+
+  double mSmoothCoeff = 1.0;
+  double mLpCoeff = 0.0;
+  double mDcCoeff = 0.0;
+  double mLp1 = 0.0;
+  double mLp2 = 0.0;
+  double mDcLastIn = 0.0;
+  double mDcLastOut = 0.0;
+};
+
 class AcidTubeSaturator
 {
 private:
@@ -301,10 +458,21 @@ public:
     lastInputDC(0.0),
     lastOutputDC(0.0)
   {
-    // Initialize with values that complement acid sounds
+    // Initialize with values that complement acid sounds.
+    // NOTE: stage.gain is deliberately modest. Combined with the drive-
+    // dependent input gain below it is easy to push this stage so far that
+    // 1-exp(-x) pins at 1.0 for every input, at which point it flattens
+    // whatever the drive knob did upstream into one identical crushed
+    // waveform. This stage is here to add colour, not to be the distortion.
     stage.bias = 0.2;
-    stage.gain = 1.5;
+    stage.gain = 1.2;
     stage.shape = 0.8;
+  }
+
+  void setSampleRate(double sr)
+  {
+    if (sr > 0.0)
+      sampleRate = sr;
   }
 
   void setDrive(double newDrive) { drive = my_clamp(newDrive, 0.0, 1.0); }
@@ -365,4 +533,62 @@ public:
   }
 };
 
-double processAcidTubeSaturatorBlock(double sampleRate, double input);
+// driveAmount (0..1) comes from the Drive knob: the tube stage leans in as the
+// drive comes up, so the two saturators cascade the way stacked gain stages do
+// in hardware, instead of the tube stage sitting at a fixed heavy setting that
+// masks the knob entirely.
+double processAcidTubeSaturatorBlock(double sampleRate, double input, double driveAmount);
+
+// Brickwall soft limiter — applied at the end of both signal paths to ensure
+// consistent output levels with and without effects.
+std::pair<double, double> processLimiter(std::pair<double, double> input);
+
+//
+// EQ
+//
+class PeakingEQ
+{
+public:
+  void calculateCoefficients(double sampleRate, double frequency, double dbGain, double Q)
+  {
+    double A = std::pow(10.0, dbGain / 40.0);
+    double omega = 2.0 * M_PI * frequency / sampleRate;
+    double sn = std::sin(omega);
+    double cs = std::cos(omega);
+    double alpha = sn / (2.0 * Q);
+
+    double b0 = 1.0 + alpha * A;
+    double b1 = -2.0 * cs;
+    double b2 = 1.0 - alpha * A;
+    double a0 = 1.0 + alpha / A;
+    double a1 = -2.0 * cs;
+    double a2 = 1.0 - alpha / A;
+
+    // Normalisera koefficienterna
+    mB0 = b0 / a0;
+    mB1 = b1 / a0;
+    mB2 = b2 / a0;
+    mA1 = a1 / a0;
+    mA2 = a2 / a0;
+  }
+
+  double process(double input)
+  {
+    // Direkt Form I implementation
+    double output = mB0 * input + mB1 * mZ1 + mB2 * mZ2 - mA1 * mY1 - mA2 * mY2;
+
+    // Uppdatera delay-lines
+    mZ2 = mZ1;
+    mZ1 = input;
+    mY2 = mY1;
+    mY1 = output;
+
+    return output;
+  }
+
+private:
+  // Default to a pass-through, so the filter is harmless if it is ever used
+  // before calculateCoefficients() has run.
+  double mB0 = 1.0, mB1 = 0.0, mB2 = 0.0, mA1 = 0.0, mA2 = 0.0;
+  double mZ1 = 0, mZ2 = 0, mY1 = 0, mY2 = 0;  // Delay lines
+};

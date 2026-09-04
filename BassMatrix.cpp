@@ -181,7 +181,10 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
   GetParam(kParamAccent)->InitDouble("Accent", 50.0, 0.0, 100.0, 1.0, "%");
   GetParam(kParamVolume)->InitDouble("Volume", -30.0, -75.0, 0.0, 0.1, "dB");
   GetParam(kParamTempo)->InitDouble("Tempo", 120.0, 10.0, 300.0, 1.0, "bpm");
-  GetParam(kParamDrive)->InitDouble("Drive", 13.0, 1.0, 50.0, 0.1, "dB");
+  // 1.0 is clean, 10.0 is fully driven; OnParamChange maps that onto the
+  // drive stage's 0..1 amount. The unit was labelled "dB" but the value was
+  // never a dB quantity, so the label is dropped rather than left misleading.
+  GetParam(kParamDrive)->InitDouble("Drive", 1.0, 1.0, 10.0, 0.1, "");
 
   GetParam(kParamWaveForm)->InitBool("Waveform", false);
   GetParam(kParamEffects)->InitBool("Effects", true);
@@ -302,7 +305,7 @@ BassMatrix::BassMatrix(const InstanceInfo &info) :
 
     for (int i = 0; i < 2; i++)
     {
-      pGraphics->AttachControl(new GroupBtnControl(485 + (btnPatternOctavBitmap[i].FW() - 3) * i,
+      pGraphics->AttachControl(new GroupBtnControl(485.f + (btnPatternOctavBitmap[i].FW() - 3) * i,
                                                    138,
                                                    btnPatternOctavBitmap[i],
                                                    kParamOct0 + i,
@@ -663,7 +666,7 @@ BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
   {
     GetParam(kParamOct0)->Set(1.0);
     GetParam(kParamOct0 + 1)->Set(0.0);
-    mSelectedPattern = ptn;
+    mSelectedPattern = static_cast<int>(ptn);
     mSelectedOctav = 0;
   }
   else
@@ -671,7 +674,7 @@ BassMatrix::UnserializeState(const IByteChunk &chunk, int startPos)
     GetParam(kParamOct0)->Set(0.0);
     GetParam(kParamOct0 + 1)->Set(1.0);
     ptn -= 12.0;
-    mSelectedPattern = ptn;
+    mSelectedPattern = static_cast<int>(ptn);
     mSelectedOctav = 1;
   }
   for (int i = kParamPattern0; i < kParamPattern0 + 12; ++i)
@@ -920,7 +923,7 @@ BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, in
     rosic::AcidNote note;
     bool onNew16th = false;
 
-    double tb303Oout = open303Core.getSample(note, onNew16th);
+    double tb303Out = open303Core.getSample(note, onNew16th);
     if (onNew16th)
     {
       mLedSeqSender.PushData({ kCtrlTagLedSeq0, { open303Core.sequencer.getStep() } });
@@ -928,17 +931,40 @@ BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, in
 
     if (mUseEffects)
     {
-      double drive = std::tanh(tb303Oout * GetParam(kParamDrive)->Value());
-      double tubeOut = processAcidTubeSaturatorBlock(GetSampleRate(), drive);
+      //
+      // EQ
+      //
+      // A fixed midrange bump that gives the drive stage something to bite on.
+      // Coefficients are set in OnReset(), and the filter keeps its state
+      // between samples — it used to be constructed inside this loop, which
+      // reset its delay lines every sample and left it acting as a flat gain
+      // rather than a filter.
+      double eqOut = mDriveEQ.process(tb303Out);
+
+      //
+      // Drive
+      //
+      // open303 applies the Volume knob to its own output, so the signal
+      // arriving here has already been scaled by it (and the default is
+      // -30 dB). Divide that back out, drive at a fixed internal level, then
+      // re-apply it. Effectively this places the drive ahead of the master
+      // volume, which is where a clone's overdrive circuit sits — without it
+      // the knob would mean something different at every volume setting.
+      double driveOut = mDrive.process(eqOut * mVolumeGainInv) * mVolumeGain;
+
+      double tubeOut = processAcidTubeSaturatorBlock(GetSampleRate(), driveOut, mDrive.getAmount());
       std::pair<double, double> delayOut = processDelayReverbAudioBlock(GetSampleRate(), tubeOut);
       std::pair<double, double> compOut = processCompressorBlock(GetSampleRate(), delayOut);
-      *out01++ = compOut.first;
-      *out02++ = compOut.second;
+      std::pair<double, double> limitOut = processLimiter(compOut);
+      *out01++ = limitOut.first;
+      *out02++ = limitOut.second;
     }
     else
     {
-      *out01++ = tb303Oout;
-      *out02++ = tb303Oout;
+      std::pair<double, double> tb303StereoOut({ tb303Out, tb303Out });
+      std::pair<double, double> limitOut = processLimiter(tb303StereoOut);
+      *out01++ = limitOut.first;
+      *out02++ = limitOut.second;
     }
   }
   mLastSamplePos = static_cast<unsigned int>(GetSamplePos()) + nFrames;
@@ -1004,6 +1030,17 @@ BassMatrix::OnReset()
   // loaded, so be sure you really want to reset the parameter.
 
   open303Core.setSampleRate(GetSampleRate());
+
+  // Drive chain. Coefficients depend on the sample rate, so they are (re)built
+  // here rather than per sample in ProcessBlock().
+  mDrive.setSampleRate(GetSampleRate());
+  mDrive.setAmount((GetParam(kParamDrive)->Value() - 1.0) / 9.0);
+  mDrive.reset();  // after setAmount, so smoothing starts at the current value
+  mDriveEQ.calculateCoefficients(GetSampleRate(), 750.0, 13.0, 0.8);
+
+  const double volumeDb = GetParam(kParamVolume)->Value();
+  mVolumeGain = std::pow(10.0, volumeDb / 20.0);
+  mVolumeGainInv = 1.0 / std::max(mVolumeGain, 1.0e-6);
 
   // Some internal stuff. Maybe we need to change this to sound more as a real TB-303?
   // Don't move this code, because Square wave stops to work then.
@@ -1230,7 +1267,16 @@ BassMatrix::OnParamChange(int paramIdx)
     case kParamEnvMode: open303Core.setEnvMod(value); break;
     case kParamDecay: open303Core.setDecay(value); break;
     case kParamAccent: open303Core.setAccent(value); break;
-    case kParamVolume: open303Core.setVolume(value); break;
+    case kParamVolume:
+      open303Core.setVolume(value);
+      // Cache the raw gain so the drive stage can normalise it away.
+      mVolumeGain = std::pow(10.0, value / 20.0);
+      mVolumeGainInv = 1.0 / std::max(mVolumeGain, 1.0e-6);
+      break;
+    case kParamDrive:
+      // Knob reads 1..10; the drive stage wants 0..1.
+      mDrive.setAmount((value - 1.0) / 9.0);
+      break;
     case kParamTempo:
       assert(value >= 10);
       assert(value <= 300);

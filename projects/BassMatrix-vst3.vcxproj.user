@@ -4,11 +4,13 @@
     <LocalDebuggerCommand>$(VST3_X64_HOST_PATH)</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>$(VST3_X64_COMMAND_ARGS)</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArgumentsHistory>C:\Users\ola\OlasDrive\projekt\music\BassMatrix\BassMatrix.RPP|</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommand>$(VST3_X64_HOST_PATH)</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>$(VST3_X64_COMMAND_ARGS)</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArgumentsHistory>C:\Users\ola\OlasDrive\projekt\music\BassMatrix\BassMatrix.RPP|</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|x64'">
     <LocalDebuggerCommand>$(VST3_X64_HOST_PATH)</LocalDebuggerCommand>

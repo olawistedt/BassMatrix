@@ -173,15 +173,20 @@ processDelayReverbAudioBlock(double sampleRate, double input)
   return std::make_pair(left, right);
 }
 
-// Usage example:
 double
-processAcidTubeSaturatorBlock(double sampleRate, double input)
+processAcidTubeSaturatorBlock(double sampleRate, double input, double driveAmount)
 {
   static AcidTubeSaturator saturator(sampleRate);
+  saturator.setSampleRate(sampleRate);
 
-  saturator.setDrive(0.7);  // 70% drive
-  saturator.setBias(0.1);   // Slight positive bias
-  saturator.setMix(1.0);    // 100% wet
+  // Was a fixed 0.7, which put ~12x of gain in front of a 1-exp(-x) shaper —
+  // enough to saturate anything above about -12 dBFS completely. Everything
+  // that reached it came out the same shape no matter what the Drive knob was
+  // set to. Now it tracks the knob and stays in its gentle region, so it
+  // colours the drive instead of erasing it.
+  saturator.setDrive(0.08 + 0.30 * my_clamp(driveAmount, 0.0, 1.0));
+  saturator.setBias(0.1);  // Slight positive bias
+  saturator.setMix(1.0);   // 100% wet
 
   return saturator.process(input);
 }
@@ -238,4 +243,18 @@ processCompressorBlock(double sampleRate, std::pair<double, double> input)
   static SimpleCompressor comp;
   comp.setSampleRate(sampleRate);
   return comp.process(input.first, input.second);
+}
+
+std::pair<double, double>
+processLimiter(std::pair<double, double> input)
+{
+  // Soft brickwall limiter using tanh — limits to approx ±0.99 at max,
+  // preserving dynamics below the threshold while preventing hard clipping.
+  const double threshold = 0.9;
+  const double kInv = 1.0 / threshold;
+  auto limit = [&](double x) -> double
+  {
+    return threshold * std::tanh(x * kInv);
+  };
+  return { limit(input.first), limit(input.second) };
 }
