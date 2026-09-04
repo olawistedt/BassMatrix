@@ -290,10 +290,11 @@ std::pair<double, double> processDelayReverbAudioBlock(double sampleRate, double
 //    overdriven 303. A plain symmetric tanh only ever produces odd harmonics
 //    and lands somewhere between "fuzz box" and "nothing".
 //
-//  * Make-up gain only *partially* compensates for the added pre-gain, so
-//    turning the knob up makes the sound both dirtier and louder. Both cues
-//    matter — fully levelling the output is the single most reliable way to
-//    make a drive knob feel like it does nothing at all.
+//  * Make-up gain holds the output level constant, so the knob changes the
+//    character of the sound and nothing else. You can sweep it without the
+//    level moving underneath you, and A/B settings without the louder one
+//    simply sounding better. The compensation is a measured curve rather than
+//    a formula — see kMakeupDb below.
 //
 class AcidDrive
 {
@@ -346,24 +347,32 @@ public:
 
     mPreGainTarget = std::pow(10.0, (kMaxDriveDb * mAmountTarget) / 20.0);
 
-    // pow(preGain, -kMakeupExp) claws back most, but deliberately not all, of
-    // the pre-gain. Net result is a few dB louder at full drive than clean.
-    mMakeupTarget = (1.0 / kInputTrim) * std::pow(mPreGainTarget, -kMakeupExp);
-
     mBiasTarget = 0.35 * mAmountTarget;        // asymmetric operating point
     mAsymTarget = 1.0 + 0.35 * mAmountTarget;  // negative half squashed harder
+
+    mLevelMatchTarget = std::pow(10.0, makeupDb(mAmountTarget) / 20.0);
   }
 
   // The smoothed value, so downstream stages track the knob the same way.
   double getAmount() const { return mAmount; }
 
+  /** Gain that holds the level of the whole drive path constant as the knob
+    moves. Apply it AFTER the tube stage, not inside this one.
+
+    Folding it into process() does not work: it would lower the level going
+    into the tube saturator, moving that stage into a more linear part of its
+    curve, so the tube would stop compressing the rise it is supposed to be
+    compensating for — the correction partly cancels itself. Applied at the end
+    of the path it is a plain output trim and the measured curve holds. */
+  double getLevelMatchGain() const { return mLevelMatch; }
+
   double process(double input)
   {
     mAmount += (mAmountTarget - mAmount) * mSmoothCoeff;
     mPreGain += (mPreGainTarget - mPreGain) * mSmoothCoeff;
-    mMakeup += (mMakeupTarget - mMakeup) * mSmoothCoeff;
     mBias += (mBiasTarget - mBias) * mSmoothCoeff;
     mAsym += (mAsymTarget - mAsym) * mSmoothCoeff;
+    mLevelMatch += (mLevelMatchTarget - mLevelMatch) * mSmoothCoeff;
 
     // kInputTrim keeps the clean end of the knob inside the linear region of
     // the tanh curve, so "drive off" really is transparent instead of
@@ -384,37 +393,61 @@ public:
     mLp2 += (mLp1 - mLp2) * (1.0 - mLpCoeff);
     out += (mLp2 - out) * (0.30 * mAmount);
 
-    return out * mMakeup;
+    // Undo the headroom trim only. The level matching is a separate output
+    // trim applied after the tube stage — see getLevelMatchGain().
+    return out * (1.0 / kInputTrim);
   }
 
 private:
-  // Tuned by sweeping these three against a real open303 note rendered through
-  // the same peaking EQ that feeds this stage, selecting for: a waveform that
-  // keeps changing across the whole knob travel, a level that rises ~9-11 dB
-  // and never falls back, and a genuinely unity-gain clean setting.
+  // Level-matching make-up gain, in dB, at 11 evenly spaced knob positions.
+  //
+  // Measured rather than derived: with make-up held at the trim-only baseline,
+  // the level at the END of the drive path (this shaper plus the tube stage,
+  // whose own gain also tracks the knob) rises by up to ~8 dB, so these are the
+  // negated figures that hold it flat. Calibrated as the mean across saw,
+  // square and accented open303 notes; the worst residual across those is
+  // 0.83 dB over the whole knob travel.
+  //
+  // A static curve is used deliberately in preference to an RMS-tracking
+  // auto-gain: the latter is a compressor by another name and would flatten
+  // the note-to-note dynamics that accents depend on.
+  static double makeupDb(double amount)
+  {
+    static const double kMakeupDb[11] = { 0.00,  -1.93, -3.54, -4.83, -5.80, -6.50,
+                                          -6.95, -7.23, -7.36, -7.38, -7.33 };
+    const double pos = my_clamp(amount, 0.0, 1.0) * 10.0;
+    int i = static_cast<int>(pos);
+    if (i > 9)
+      i = 9;
+    return kMakeupDb[i] + (kMakeupDb[i + 1] - kMakeupDb[i]) * (pos - i);
+  }
+
+  // Tuned by sweeping these against a real open303 note rendered through the
+  // same peaking EQ that feeds this stage, selecting for a waveform that keeps
+  // changing across the whole knob travel and a genuinely unity-gain clean
+  // setting.
   //
   // kInputTrim looks small because the signal arriving here is hot: open303 at
   // unity volume peaks around 2.5, and the +13 dB EQ takes that past 5.
-  static constexpr double kMaxDriveDb = 32.0;   // pre-gain at the top of the knob
-  static constexpr double kInputTrim = 0.115;   // headroom trim, undone by the make-up gain
-  static constexpr double kMakeupExp = 0.30;    // 0 = no make-up, 1 = fully levelled
+  static constexpr double kMaxDriveDb = 32.0;  // pre-gain at the top of the knob
+  static constexpr double kInputTrim = 0.115;  // headroom trim, undone by the make-up gain
 
   void snapToTarget()
   {
     mAmount = mAmountTarget;
     mPreGain = mPreGainTarget;
-    mMakeup = mMakeupTarget;
     mBias = mBiasTarget;
     mAsym = mAsymTarget;
+    mLevelMatch = mLevelMatchTarget;
   }
 
   double mSampleRate = 44100.0;
 
   double mAmount = 0.0, mAmountTarget = 0.0;
   double mPreGain = 1.0, mPreGainTarget = 1.0;
-  double mMakeup = 1.0, mMakeupTarget = 1.0;
   double mBias = 0.0, mBiasTarget = 0.0;
   double mAsym = 1.0, mAsymTarget = 1.0;
+  double mLevelMatch = 1.0, mLevelMatchTarget = 1.0;
 
   double mSmoothCoeff = 1.0;
   double mLpCoeff = 0.0;

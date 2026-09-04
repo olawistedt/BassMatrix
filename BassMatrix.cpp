@@ -946,13 +946,24 @@ BassMatrix::ProcessBlock(PLUG_SAMPLE_DST **inputs, PLUG_SAMPLE_DST **outputs, in
       //
       // open303 applies the Volume knob to its own output, so the signal
       // arriving here has already been scaled by it (and the default is
-      // -30 dB). Divide that back out, drive at a fixed internal level, then
-      // re-apply it. Effectively this places the drive ahead of the master
-      // volume, which is where a clone's overdrive circuit sits — without it
-      // the knob would mean something different at every volume setting.
-      double driveOut = mDrive.process(eqOut * mVolumeGainInv) * mVolumeGain;
-
-      double tubeOut = processAcidTubeSaturatorBlock(GetSampleRate(), driveOut, mDrive.getAmount());
+      // -30 dB). Divide that back out, run the whole saturation path at a
+      // fixed internal level, and re-apply the volume only at the end.
+      //
+      // Both saturators have to sit inside this normalised region. Leaving the
+      // tube stage outside it made its behaviour depend on the Volume knob —
+      // clean when the volume was low, crunching when it was high — which in
+      // turn made the Drive knob's level and character change with the volume.
+      // Effectively this places the whole drive circuit ahead of the master
+      // volume, which is where a clone's overdrive lives.
+      //
+      // getLevelMatchGain() is applied after the tube stage rather than inside
+      // the drive, so that the Drive knob changes the character of the sound
+      // without changing its level. It has to go here: applied earlier it
+      // would move the tube stage's operating point and partly cancel itself.
+      const double normIn = eqOut * mVolumeGainInv;
+      const double driven = mDrive.process(normIn);
+      double tubeOut = processAcidTubeSaturatorBlock(GetSampleRate(), driven, mDrive.getAmount())
+                       * mDrive.getLevelMatchGain() * mVolumeGain;
       std::pair<double, double> delayOut = processDelayReverbAudioBlock(GetSampleRate(), tubeOut);
       std::pair<double, double> compOut = processCompressorBlock(GetSampleRate(), delayOut);
       std::pair<double, double> limitOut = processLimiter(compOut);
